@@ -28,11 +28,13 @@
 #include "tilestamp.h"
 
 namespace Tiled {
+
+class WangSet;
+
 namespace Internal {
 
 class MapDocument;
 class StampActions;
-
 /**
  * Implements a tool that bucket fills (flood fills) a region with a repeatable
  * stamp.
@@ -59,6 +61,8 @@ public:
      * Sets the stamp that is drawn when filling.
      */
     void setStamp(const TileStamp &stamp);
+
+    void setWangSet(WangSet *wangSet) { mWangSet = wangSet; }
 
     /**
      * This returns the current stamp used for filling.
@@ -121,6 +125,9 @@ private:
      * Fills the given \a region in the given \a tileLayer with random tiles.
      */
     void randomFill(TileLayer &tileLayer, const QRegion &region) const;
+    void wangFill(TileLayer &tileLayer, const QRegion &region) const;
+
+    WangSet *mWangSet;
 
     StampActions *mStampActions;
 };

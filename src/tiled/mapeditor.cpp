@@ -631,6 +631,8 @@ void MapEditor::setStamp(const TileStamp &stamp)
     mStampBrush->setStamp(stamp);
     mBucketFillTool->setStamp(stamp);
 
+    mBucketFillTool->setWangSet((WangSet*)mTilesetDock->currentTile()->tileset()->wangSet(0));
+
     // When selecting a new stamp, it makes sense to switch to a stamp tool
     AbstractTool *selectedTool = mToolManager->selectedTool();
     if (selectedTool != mStampBrush && selectedTool != mBucketFillTool)

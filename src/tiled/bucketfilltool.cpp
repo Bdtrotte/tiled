@@ -31,6 +31,7 @@
 #include "mapdocument.h"
 #include "painttilelayer.h"
 #include "stampactions.h"
+#include "wangset.h"
 
 #include <QAction>
 #include <QApplication>
@@ -187,7 +188,8 @@ void BucketFillTool::tilePositionChanged(const QPoint &tilePos)
             fillRegionChanged = true;
         }
     } else {
-        randomFill(*mFillOverlay, mFillRegion);
+        //randomFill did go here. Replaced with wang fill to show proof of concept.
+        wangFill(*mFillOverlay, mFillRegion);
         fillRegionChanged = true;
     }
 
@@ -355,6 +357,36 @@ void BucketFillTool::randomFill(TileLayer &tileLayer, const QRegion &region) con
             for (int _y = rect.top(); _y <= rect.bottom(); ++_y) {
                 tileLayer.setCell(_x, _y,
                                   mRandomCellPicker.pick());
+            }
+        }
+    }
+}
+
+void BucketFillTool::wangFill(TileLayer &tileLayer, const QRegion &region) const
+{
+    TileLayer *curTileLayer = currentTileLayer();
+    if (!mWangSet || !curTileLayer || region.isEmpty())
+        return;
+
+    //clears the region first.
+    for (const QRect &rect : region.translated(-tileLayer.position()).rects()) {
+        for (int _x = rect.left(); _x <= rect.right(); ++_x) {
+            for (int _y = rect.top(); _y <= rect.bottom(); ++_y) {
+                tileLayer.setCell(_x,_y,Cell());
+            }
+        }
+    }
+
+    //creates and sets cell based on already set cells. Doesn't pay attention to surrounding tiles yet.
+    for (const QRect &rect : region.translated(-tileLayer.position()).rects()) {
+        for (int _x = rect.left(); _x <= rect.right(); ++_x) {
+            for (int _y = rect.top(); _y <= rect.bottom(); ++_y) {
+                unsigned n = mWangSet->wangIdFromSurroundings(&tileLayer,_x, _y);
+                Tile *tile = mWangSet->findMatchingTile(n);
+
+                Cell c(tile);
+
+                tileLayer.setCell(_x,_y,c);
             }
         }
     }

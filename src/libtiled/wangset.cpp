@@ -26,6 +26,7 @@
  */
 
 #include "wangset.h"
+#include "tilelayer.h"
 
 #include <QStack>
 #include <QPoint>
@@ -146,9 +147,119 @@ QList<Tile*> WangSet::findMatchingTiles(WangId wangId) const
     return list;
 }
 
+//Pretty sloppy function at the moment, will be condenced in the final version
+//Also needs to take into account surrouding tiles, not just those in the layer its filling.
+WangId WangSet::wangIdFromSurroundings(TileLayer *tileLayer, int x, int y)
+{
+    unsigned id = 0;
+
+    if (mCornerColors > 0) {
+        unsigned cornerId = 0;
+
+        if (tileLayer->contains(x+1,y-1)) {
+            cornerId = wangIdOfTile(tileLayer->cellAt(QPoint(x+1,y-1)).tile());
+            cornerId &= 0x00f00000;
+            id |= cornerId >> 16;
+        }
+        if (cornerId == 0 && tileLayer->contains(x, y-1)) {
+            cornerId = wangIdOfTile(tileLayer->cellAt(QPoint(x,y-1)).tile());
+            cornerId &= 0x0000f000;
+            id |= cornerId >> 8;
+        }
+        if (cornerId == 0 && tileLayer->contains(x+1, y)) {
+            cornerId = wangIdOfTile(tileLayer->cellAt(QPoint(x+1,y)).tile());
+            cornerId &= 0xf0000000;
+            id |= cornerId >> 24;
+        }
+
+        cornerId = 0;
+
+        if (tileLayer->contains(x+1,y+1)) {
+            cornerId = wangIdOfTile(tileLayer->cellAt(QPoint(x+1,y+1)).tile());
+            id |= (cornerId & 0xf0000000) >> 16;
+        }
+        if (cornerId == 0 && tileLayer->contains(x+1, y)) {
+            cornerId = wangIdOfTile(tileLayer->cellAt(QPoint(x+1,y)).tile());
+            cornerId &= 0x00f00000;
+            id |= cornerId >> 8;
+        }
+        if (cornerId == 0 && tileLayer->contains(x, y+1)) {
+            cornerId = wangIdOfTile(tileLayer->cellAt(QPoint(x,y+1)).tile());
+            cornerId &= 0x000000f0;
+            id |= cornerId << 8;
+        }
+
+        cornerId = 0;
+
+        if (tileLayer->contains(x-1,y+1)) {
+            cornerId = wangIdOfTile(tileLayer->cellAt(QPoint(x-1,y+1)).tile());
+            id |= (cornerId & 0x000000f0) << 16;
+        }
+        if (cornerId == 0 && tileLayer->contains(x, y+1)) {
+            cornerId = wangIdOfTile(tileLayer->cellAt(QPoint(x,y+1)).tile());
+            cornerId &= 0xf0000000;
+            id |= cornerId >> 8;
+        }
+        if (cornerId == 0 && tileLayer->contains(x-1, y)) {
+            cornerId = wangIdOfTile(tileLayer->cellAt(QPoint(x-1,y)).tile());
+            cornerId &= 0x0000f000;
+            id |= cornerId << 8;
+        }
+
+        cornerId = 0;
+
+        if (tileLayer->contains(x-1,y-1)) {
+            cornerId = wangIdOfTile(tileLayer->cellAt(QPoint(x-1,y-1)).tile());
+            id |= (cornerId & 0x0000f000) << 16;
+        }
+        if (cornerId == 0 && tileLayer->contains(x-1, y)) {
+            cornerId = wangIdOfTile(tileLayer->cellAt(QPoint(x-1,y)).tile());
+            cornerId &= 0x000000f0;
+            id |= cornerId << 24;
+        }
+        if (cornerId == 0 && tileLayer->contains(x, y-1)) {
+            cornerId = wangIdOfTile(tileLayer->cellAt(QPoint(x,y-1)).tile());
+            cornerId &= 0x00f00000;
+            id |= cornerId << 8;
+        }
+    }
+    if (mEdgeColors > 0) {
+        unsigned edgeId;
+        unsigned mask = 0x0000000f;
+
+        if (tileLayer->contains(x,y-1)) {
+            edgeId = wangIdOfTile(tileLayer->cellAt(QPoint(x,y-1)).tile());
+            id |= edgeId & mask;
+        }
+        mask <<= 8;
+
+        if (tileLayer->contains(x+1,y)) {
+            edgeId = wangIdOfTile(tileLayer->cellAt(QPoint(x+1,y)).tile());
+            id |= edgeId & mask;
+        }
+        mask <<= 8;
+
+        if (tileLayer->contains(x,y+1)) {
+            edgeId = wangIdOfTile(tileLayer->cellAt(QPoint(x,y+1)).tile());
+            id |= edgeId & mask;
+        }
+        mask <<= 8;
+
+        if (tileLayer->contains(x-1,y)) {
+            edgeId = wangIdOfTile(tileLayer->cellAt(QPoint(x-1,y)).tile());
+            id |= edgeId & mask;
+        }
+    }
+
+    return WangId(id);
+}
+
 WangId WangSet::wangIdOfTile(const Tile *tile) const
 {
-    return mTileIdToWangId.value(tile->id());
+    if(tile)
+        return mTileIdToWangId.value(tile->id());
+    else
+        return 0;
 }
 
 WangSet *WangSet::clone(Tileset *tileset) const

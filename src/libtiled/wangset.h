@@ -37,6 +37,9 @@
 
 namespace Tiled {
 
+class TileLayer;
+class Cell;
+
 class WangId
 {
 public:
@@ -137,6 +140,7 @@ public:
      * */
     QList<Tile*> findMatchingTiles(WangId wangId) const;
 
+    WangId wangIdFromSurroundings(TileLayer *tileLayer, int x, int y);
 
     /* Returns the wangId of a given Tile.
      * */
