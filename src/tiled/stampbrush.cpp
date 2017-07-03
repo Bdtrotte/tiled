@@ -48,9 +48,11 @@ StampBrush::StampBrush(QObject *parent)
                        parent)
     , mBrushBehavior(Free)
     , mIsRandom(false)
+    , mIsWangFill(false)
     , mStampActions(new StampActions(this))
 {
     connect(mStampActions->random(), &QAction::toggled, this, &StampBrush::randomChanged);
+    connect(mStampActions->wangFill(), &QAction::toggled, this, &StampBrush::wangFillChanged);
 
     connect(mStampActions->flipHorizontal(), &QAction::triggered,
             [this]() { emit stampChanged(mStamp.flipped(FlipHorizontally)); });
@@ -562,8 +564,22 @@ void StampBrush::setRandom(bool value)
     if (mIsRandom == value)
         return;
 
+    if (mIsWangFill)
+        mStampActions->wangFill()->toggle();
+
     mIsRandom = value;
 
     updateRandomList();
     updatePreview();
+}
+
+void StampBrush::setWangFill(bool value)
+{
+    if (mIsWangFill == value)
+        return;
+
+    if (mIsRandom)
+        mStampActions->random()->toggle();
+
+    mIsWangFill = value;
 }

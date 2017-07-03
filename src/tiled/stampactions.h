@@ -41,6 +41,7 @@ public:
     void populateToolBar(QToolBar *toolBar, bool isRandom);
 
     QAction *random() const { return mRandom; }
+    QAction *wangFill() const { return mWangFill; }
     QAction *flipHorizontal() const { return mFlipHorizontal; }
     QAction *flipVertical() const { return mFlipVertical; }
     QAction *rotateLeft() const { return mRotateLeft; }
@@ -48,6 +49,7 @@ public:
 
 private:
     QAction *mRandom;
+    QAction *mWangFill;
     QAction *mFlipHorizontal;
     QAction *mFlipVertical;
     QAction *mRotateLeft;
