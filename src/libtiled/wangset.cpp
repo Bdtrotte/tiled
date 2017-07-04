@@ -91,7 +91,7 @@ void WangTile::flipVertically()
 
 Cell WangTile::makeCell() const
 {
-    if(!mTile)
+    if (!mTile)
         return Cell();
 
     Cell cell(mTile);
