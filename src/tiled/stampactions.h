@@ -38,7 +38,7 @@ public:
 
     void languageChanged();
 
-    void populateToolBar(QToolBar *toolBar, bool isRandom);
+    void populateToolBar(QToolBar *toolBar, bool isRandom, bool isWangFill);
 
     QAction *random() const { return mRandom; }
     QAction *wangFill() const { return mWangFill; }

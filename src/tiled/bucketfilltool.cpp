@@ -290,7 +290,7 @@ void BucketFillTool::setStamp(const TileStamp &stamp)
 
 void BucketFillTool::populateToolBar(QToolBar *toolBar)
 {
-    mStampActions->populateToolBar(toolBar, mIsRandom);
+    mStampActions->populateToolBar(toolBar, mIsRandom, mIsWangFill);
 }
 
 void BucketFillTool::clearOverlay()
@@ -343,11 +343,13 @@ void BucketFillTool::setRandom(bool value)
     if (mIsRandom == value)
         return;
 
-    if(mIsWangFill)
-        mStampActions->wangFill()->toggle();
-
     mIsRandom = value;
     updateRandomListAndMissingTilesets();
+
+    if (mIsRandom) {
+        mIsWangFill = false;
+        mStampActions->wangFill()->setChecked(false);
+    }
 
     // Don't need to recalculate fill region if there was no fill region
     if (!mFillOverlay)
@@ -361,10 +363,12 @@ void BucketFillTool::setWangFill(bool value)
     if(mIsWangFill == value)
         return;
 
-    if(mIsRandom)
-        mStampActions->random()->toggle();
-
     mIsWangFill = value;
+
+    if (mIsWangFill) {
+        mIsRandom = false;
+        mStampActions->random()->setChecked(false);
+    }
 
     if(!mFillOverlay)
         return;

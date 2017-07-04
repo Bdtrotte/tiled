@@ -88,9 +88,10 @@ void StampActions::languageChanged()
     mRotateRight->setShortcut(QKeySequence(tr("Z")));
 }
 
-void StampActions::populateToolBar(QToolBar *toolBar, bool isRandom)
+void StampActions::populateToolBar(QToolBar *toolBar, bool isRandom, bool isWangFill)
 {
     mRandom->setChecked(isRandom);
+    mWangFill->setChecked(isWangFill);
     toolBar->addAction(mRandom);
     toolBar->addAction(mWangFill);
     toolBar->addAction(mFlipHorizontal);

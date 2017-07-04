@@ -237,7 +237,7 @@ void StampBrush::setStamp(const TileStamp &stamp)
 
 void StampBrush::populateToolBar(QToolBar *toolBar)
 {
-    mStampActions->populateToolBar(toolBar, mIsRandom);
+    mStampActions->populateToolBar(toolBar, mIsRandom, mIsWangFill);
 }
 
 void StampBrush::beginPaint()
@@ -564,10 +564,12 @@ void StampBrush::setRandom(bool value)
     if (mIsRandom == value)
         return;
 
-    if (mIsWangFill)
-        mStampActions->wangFill()->toggle();
-
     mIsRandom = value;
+
+    if (mIsRandom) {
+        mIsWangFill = false;
+        mStampActions->wangFill()->setChecked(false);
+    }
 
     updateRandomList();
     updatePreview();
@@ -578,8 +580,10 @@ void StampBrush::setWangFill(bool value)
     if (mIsWangFill == value)
         return;
 
-    if (mIsRandom)
-        mStampActions->random()->toggle();
-
     mIsWangFill = value;
+
+    if (mIsWangFill) {
+        mIsRandom = false;
+        mStampActions->random()->setChecked(false);
+    }
 }
