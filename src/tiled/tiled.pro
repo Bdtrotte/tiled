@@ -74,6 +74,7 @@ SOURCES += aboutdialog.cpp \
     abstractobjecttool.cpp \
     abstracttileselectiontool.cpp \
     abstracttiletool.cpp \
+    abstracttilefilltool.cpp \
     abstracttool.cpp \
     actionmanager.cpp \
     addpropertydialog.cpp \
@@ -109,6 +110,7 @@ SOURCES += aboutdialog.cpp \
     changetileprobability.cpp \
     changetileterrain.cpp \
     changetilewangid.cpp \
+    changewangcolordata.cpp \
     changewangsetdata.cpp \
     clickablelabel.cpp \
     clipboardmanager.cpp \
@@ -203,6 +205,7 @@ SOURCES += aboutdialog.cpp \
     rotatemapobject.cpp \
     selectionrectangle.cpp \
     selectsametiletool.cpp \
+    shapefilltool.cpp \
     snaphelper.cpp \
     stampactions.cpp \
     stampbrush.cpp \
@@ -247,6 +250,7 @@ SOURCES += aboutdialog.cpp \
     variantpropertymanager.cpp \
     wangbrush.cpp \
     wangcolormodel.cpp \
+    wangcolorview.cpp \
     wangsetview.cpp \
     wangsetmodel.cpp \
     wangdock.cpp \
@@ -259,6 +263,7 @@ HEADERS += aboutdialog.h \
     abstractobjecttool.h \
     abstracttileselectiontool.h \
     abstracttiletool.h \
+    abstracttilefilltool.h \
     abstracttool.h \
     actionmanager.h \
     addpropertydialog.h \
@@ -294,6 +299,7 @@ HEADERS += aboutdialog.h \
     changetileprobability.h \
     changetileterrain.h \
     changetilewangid.h \
+    changewangcolordata.h \
     changewangsetdata.h \
     clickablelabel.h \
     clipboardmanager.h \
@@ -391,6 +397,7 @@ HEADERS += aboutdialog.h \
     rotatemapobject.h \
     selectionrectangle.h \
     selectsametiletool.h \
+    shapefilltool.h \
     snaphelper.h \
     sparkleautoupdater.h \
     stampactions.h \
@@ -437,6 +444,7 @@ HEADERS += aboutdialog.h \
     variantpropertymanager.h \
     wangbrush.h \
     wangcolormodel.h \
+    wangcolorview.h \
     wangsetview.h \
     wangsetmodel.h \
     wangdock.h \

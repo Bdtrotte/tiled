@@ -28,6 +28,7 @@
 #include "mapdocument.h"
 #include "mapscene.h"
 #include "painttilelayer.h"
+#include "staggeredrenderer.h"
 #include "stampactions.h"
 #include "tile.h"
 #include "tilestamp.h"
@@ -253,7 +254,8 @@ void StampBrush::setWangSet(WangSet *wangSet)
         return;
 
     const SharedTileset &tileset = wangSet->tileset()->sharedPointer();
-    if (!mapDocument()->map()->tilesets().contains(tileset))
+
+    if (!mapDocument() || !mapDocument()->map()->tilesets().contains(tileset))
        mMissingTilesets.append(tileset);
 }
 
@@ -442,7 +444,9 @@ void StampBrush::drawPreviewLayer(const QVector<QPoint> &list)
             Cell cell = mWangFiller->findFittingCell(*tileLayer,
                                                      *preview.data(),
                                                      paintedRegion,
-                                                     p);
+                                                     p,
+                                                     dynamic_cast<StaggeredRenderer*>(mapDocument()->renderer()),
+                                                     mapDocument()->map()->staggerAxis());
 
             preview->setCell(p.x() - bounds.left(),
                              p.y() - bounds.top(),

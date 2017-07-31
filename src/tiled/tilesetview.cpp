@@ -241,10 +241,13 @@ static QTransform tilesetGridTransform(const Tileset &tileset, QPoint tileCenter
     return transform;
 }
 
-static void setWangStyle(QPainter *painter, int index, int max)
+static void setWangStyle(QPainter *painter, WangSet *wangSet, int index, bool edge)
 {
-    float hue = (float) (index-1) / max;
-    QColor c = QColor::fromHsvF(hue, 1, 1);
+    QColor c;
+    if (edge)
+        c = wangSet->edgeColorAt(index)->color();
+    else
+        c = wangSet->cornerColorAt(index)->color();
 
     painter->setBrush(QColor(c.red(), c.green(), c.blue(), 200));
     setCosmeticPen(painter, c, 2);
@@ -252,8 +255,7 @@ static void setWangStyle(QPainter *painter, int index, int max)
 
 static void paintWangOverlay(QPainter *painter,
                              WangId wangId,
-                             int edges,
-                             int corners,
+                             WangSet *wangSet,
                              const QRect &rect)
 {
     painter->save();
@@ -264,15 +266,15 @@ static void paintWangOverlay(QPainter *painter,
     int thicknessW = rect.width()/6;
     int thicknessH = rect.height()/6;
 
-    if (edges > 1) {
-        if (corners > 1) {
+    if (wangSet->edgeColorCount() > 1) {
+        if (wangSet->cornerColorCount() > 1) {
             QRect wRect;
             int edge;
 
             //top
             edge = wangId.edgeColor(0);
             if (edge > 0) {
-                setWangStyle(painter, edge, edges);
+                setWangStyle(painter, wangSet, edge, true);
 
                 wRect = QRect(QPoint(rect.left() + rect.width()/3, rect.top()),
                               QPoint(rect.right() - rect.width()/3, rect.top() + thicknessH));
@@ -282,7 +284,7 @@ static void paintWangOverlay(QPainter *painter,
             //right
             edge = wangId.edgeColor(1);
             if (edge > 0) {
-                setWangStyle(painter, edge, edges);
+                setWangStyle(painter, wangSet, edge, true);
 
                 wRect = QRect(QPoint(rect.right() - thicknessW, rect.top() + rect.height()/3),
                               QPoint(rect.right(), rect.bottom() - rect.height()/3));
@@ -292,7 +294,7 @@ static void paintWangOverlay(QPainter *painter,
             //bottom
             edge = wangId.edgeColor(2);
             if (edge > 0) {
-                setWangStyle(painter, edge, edges);
+                setWangStyle(painter, wangSet, edge, true);
 
                 wRect = QRect(QPoint(rect.left() + rect.width()/3, rect.bottom() - thicknessH),
                               QPoint(rect.right() - rect.width()/3, rect.bottom()));
@@ -302,7 +304,7 @@ static void paintWangOverlay(QPainter *painter,
             //left
             edge = wangId.edgeColor(3);
             if (edge > 0) {
-                setWangStyle(painter, edge, edges);
+                setWangStyle(painter, wangSet, edge, true);
 
                 wRect = QRect(QPoint(rect.left(), rect.top() + rect.height()/3),
                               QPoint(rect.left() + thicknessW, rect.bottom() - rect.height()/3));
@@ -314,7 +316,7 @@ static void paintWangOverlay(QPainter *painter,
             //top
             edge = wangId.edgeColor(0);
             if (edge > 0) {
-                setWangStyle(painter, edge, edges);
+                setWangStyle(painter, wangSet, edge, true);
 
                 const QPoint points[] = {
                     rect.topLeft(),
@@ -329,7 +331,7 @@ static void paintWangOverlay(QPainter *painter,
             //right
             edge = wangId.edgeColor(1);
             if (edge > 0) {
-                setWangStyle(painter, edge, edges);
+                setWangStyle(painter, wangSet, edge, true);
 
                 const QPoint points[] = {
                     rect.topRight(),
@@ -344,7 +346,7 @@ static void paintWangOverlay(QPainter *painter,
             //bottom
             edge = wangId.edgeColor(2);
             if (edge > 0) {
-                setWangStyle(painter, edge, edges);
+                setWangStyle(painter, wangSet, edge, true);
 
                 const QPoint points[] = {
                     rect.bottomRight(),
@@ -359,7 +361,7 @@ static void paintWangOverlay(QPainter *painter,
             //left
             edge = wangId.edgeColor(3);
             if (edge > 0) {
-                setWangStyle(painter, edge, edges);
+                setWangStyle(painter, wangSet, edge, true);
 
                 const QPoint points[] = {
                     rect.topLeft(),
@@ -373,14 +375,14 @@ static void paintWangOverlay(QPainter *painter,
         }
     }
 
-    if (corners > 1) {
-        if (edges > 1) {
+    if (wangSet->cornerColorCount() > 1) {
+        if (wangSet->edgeColorCount() > 1) {
             int corner;
 
             //top right
             corner = wangId.cornerColor(0);
             if (corner > 0) {
-                setWangStyle(painter, corner, corners);
+                setWangStyle(painter, wangSet, corner, false);
 
                 const QPoint points[] = {
                     rect.topRight(),
@@ -397,7 +399,7 @@ static void paintWangOverlay(QPainter *painter,
             //bottom right
             corner = wangId.cornerColor(1);
             if (corner > 0) {
-                setWangStyle(painter, corner, corners);
+                setWangStyle(painter, wangSet, corner, false);
 
                 const QPoint points[] = {
                     rect.bottomRight(),
@@ -414,7 +416,7 @@ static void paintWangOverlay(QPainter *painter,
             //bottom left
             corner = wangId.cornerColor(2);
             if (corner > 0) {
-                setWangStyle(painter, corner, corners);
+                setWangStyle(painter, wangSet, corner, false);
 
                 const QPoint points[] = {
                     rect.bottomLeft(),
@@ -431,7 +433,7 @@ static void paintWangOverlay(QPainter *painter,
             //top left
             corner = wangId.cornerColor(3);
             if (corner > 0) {
-                setWangStyle(painter, corner, corners);
+                setWangStyle(painter, wangSet, corner, false);
 
                 const QPoint points[] = {
                     rect.topLeft(),
@@ -445,13 +447,12 @@ static void paintWangOverlay(QPainter *painter,
                 painter->drawPolygon(points, 6);
             }
         } else {
-            QPolygon qPoly;
             int corner;
 
             //top right
             corner = wangId.cornerColor(0);
             if (corner > 0) {
-                setWangStyle(painter, corner, corners);
+                setWangStyle(painter, wangSet, corner, false);
 
                 const QPoint points[] = {
                     rect.topRight(),
@@ -468,7 +469,7 @@ static void paintWangOverlay(QPainter *painter,
             //bottom right
             corner = wangId.cornerColor(1);
             if (corner > 0) {
-                setWangStyle(painter, corner, corners);
+                setWangStyle(painter, wangSet, corner, false);
 
                 const QPoint points[] = {
                     rect.bottomRight(),
@@ -485,7 +486,7 @@ static void paintWangOverlay(QPainter *painter,
             //top left
             corner = wangId.cornerColor(3);
             if (corner > 0) {
-                setWangStyle(painter, corner, corners);
+                setWangStyle(painter, wangSet, corner, false);
 
                 const QPoint points[] = {
                     rect.topLeft(),
@@ -502,7 +503,7 @@ static void paintWangOverlay(QPainter *painter,
             //bottom left
             corner = wangId.cornerColor(2);
             if (corner > 0) {
-                setWangStyle(painter, corner, corners);
+                setWangStyle(painter, wangSet, corner, false);
 
                 const QPoint points[] = {
                     rect.bottomLeft(),
@@ -642,22 +643,26 @@ void TileDelegate::paint(QPainter *painter,
     }
 
     if (mTilesetView->isEditWangSet()) {
-        if (const WangSet *wangSet = mTilesetView->wangSet()) {
+        painter->save();
+        painter->setTransform(tilesetGridTransform(*tile->tileset(), targetRect.center()), true);
+
+        if (WangSet *wangSet = mTilesetView->wangSet()) {
+
             paintWangOverlay(painter, wangSet->wangIdOfTile(tile),
-                             wangSet->edgeColors(),
-                             wangSet->cornerColors(),
+                             wangSet,
                              targetRect);
 
             if (mTilesetView->hoveredIndex() == index) {
                 qreal opacity = painter->opacity();
                 painter->setOpacity(0.9);
                 paintWangOverlay(painter, mTilesetView->wangId(),
-                                 wangSet->edgeColors(),
-                                 wangSet->cornerColors(),
+                                 wangSet,
                                  targetRect);
                 painter->setOpacity(opacity);
             }
         }
+
+        painter->restore();
     }
 }
 
@@ -947,7 +952,7 @@ void TilesetView::setWangEdgeColor(int color)
 
     mWangBehavior = Edge;
 
-    Q_ASSERT(color <= mWangSet->edgeColors());
+    Q_ASSERT(color <= mWangSet->edgeColorCount());
 
     mWangColor = color;
 }
@@ -959,7 +964,7 @@ void TilesetView::setWangCornerColor(int color)
 
     mWangBehavior = Corner;
 
-    Q_ASSERT(color <= mWangSet->cornerColors());
+    Q_ASSERT(color <= mWangSet->cornerColorCount());
 
     mWangColor = color;
 }
@@ -1024,7 +1029,9 @@ void TilesetView::mouseMoveEvent(QMouseEvent *event)
 
         if (mWangBehavior != WholeId) {
             QRect tileRect = visualRect(mHoveredIndex);
-            QPoint tileLocalPos = pos - tileRect.topLeft();
+            const auto t = tilesetGridTransform(*tilesetDocument()->tileset(), tileRect.center());
+            const auto mappedPos = t.inverted().map(pos);
+            QPoint tileLocalPos = mappedPos - tileRect.topLeft();
             QPointF tileLocalPosF((float) tileLocalPos.x() / tileRect.width(),
                                   (float) tileLocalPos.y() / tileRect.height());
             tileLocalPosF -= QPointF(0.5f, 0.5f);
@@ -1211,8 +1218,12 @@ void TilesetView::contextMenuEvent(QContextMenuEvent *event)
                                               QItemSelectionModel::Clear);
 
             if (mWangSet) {
-                QAction *setImage = menu.addAction(tr("Set WangSet Image"));
+                QAction *setImage = menu.addAction(tr("Set Wang Set Image"));
                 connect(setImage, SIGNAL(triggered()), SLOT(selectWangSetImage()));
+            }
+            if (mWangBehavior != WholeId && mWangColor) {
+                QAction *setImage = menu.addAction(tr("Set Wang Color Image"));
+                connect(setImage, SIGNAL(triggered()), SLOT(selectWangColorImage()));
             }
         } else if (mTilesetDocument) {
             QAction *tileProperties = menu.addAction(propIcon,
@@ -1274,6 +1285,12 @@ void TilesetView::selectWangSetImage()
 {
     if (Tile *tile = currentTile())
         emit wangSetImageSelected(tile);
+}
+
+void TilesetView::selectWangColorImage()
+{
+    if (Tile *tile = currentTile())
+        emit wangColorImageSelected(tile, mWangBehavior == Edge, mWangColor);
 }
 
 void TilesetView::editTileProperties()

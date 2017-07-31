@@ -1,33 +1,25 @@
 /*
  * changewangsetdata.cpp
  * Copyright 2017, Benjamin Trotter <bdtrotte@ucsc.edu>
- * This file is part of libtiled.
  *
- * Redistribution and use in source and binary forms, with or without
- * modification, are permitted provided that the following conditions are met:
+ * This file is part of Tiled.
  *
- *    1. Redistributions of source code must retain the above copyright notice,
- *       this list of conditions and the following disclaimer.
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the Free
+ * Software Foundation; either version 2 of the License, or (at your option)
+ * any later version.
  *
- *    2. Redistributions in binary form must reproduce the above copyright
- *       notice, this list of conditions and the following disclaimer in the
- *       documentation and/or other materials provided with the distribution.
+ * This program is distributed in the hope that it will be useful, but WITHOUT
+ * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+ * FITNESS FOR A PARTICULAR PURPOSE.  See the GNU General Public License for
+ * more details.
  *
- * THIS SOFTWARE IS PROVIDED BY THE CONTRIBUTORS ``AS IS'' AND ANY EXPRESS OR
- * IMPLIED WARRANTIES, INCLUDING, BUT NOT LIMITED TO, THE IMPLIED WARRANTIES OF
- * MERCHANTABILITY AND FITNESS FOR A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO
- * EVENT SHALL THE CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
- * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT LIMITED TO,
- * PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE, DATA, OR PROFITS;
- * OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY THEORY OF LIABILITY,
- * WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR
- * OTHERWISE) ARISING IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF
- * ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+ * You should have received a copy of the GNU General Public License along with
+ * this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
 #include "changewangsetdata.h"
 
-#include "wangset.h"
 #include "tileset.h"
 #include "tilesetdocument.h"
 #include "tilesetwangsetmodel.h"
@@ -47,13 +39,12 @@ ChangeWangSetEdges::ChangeWangSetEdges(TilesetDocument *tilesetDocument,
     , mTilesetDocument(tilesetDocument)
     , mWangSetModel(tilesetDocument->wangSetModel())
     , mIndex(index)
-    , mOldValue(tilesetDocument->tileset()->wangSet(index)->edgeColors())
+    , mOldValue(tilesetDocument->tileset()->wangSet(index)->edgeColorCount())
     , mNewValue(newValue)
 {
     //when edge size changes, all tiles with wangIds need to be updated.
     WangSet *wangSet = mTilesetDocument->tileset()->wangSet(index);
     Q_ASSERT(wangSet);
-    mAffectedTiles = wangSet->tilesWithWangId();
 
     if (mNewValue < mOldValue) {
         //when the size is reduced, some wang assignments can be lost.
@@ -67,6 +58,22 @@ ChangeWangSetEdges::ChangeWangSetEdges(TilesetDocument *tilesetDocument,
 
             new ChangeTileWangId(mTilesetDocument, wangSet, changes, this);
         }
+
+        for (int i = mOldValue; i > mNewValue; --i) {
+            WangColorChange w;
+            w.index = i;
+            w.wangColor = wangSet->edgeColorAt(i);
+
+            mRemovedWangColors.append(w);
+        }
+
+        if (mNewValue == 1) {
+            WangColorChange w;
+            w.index = 1;
+            w.wangColor = wangSet->edgeColorAt(1);
+
+            mRemovedWangColors.append(w);
+        }
     }
 }
 
@@ -74,8 +81,15 @@ void ChangeWangSetEdges::undo()
 {
     mWangSetModel->setWangSetEdges(mIndex, mOldValue);
 
-    if (!mAffectedTiles.isEmpty())
-        emit mTilesetDocument->tileWangSetChanged(mAffectedTiles);
+    WangSet *wangSet = mTilesetDocument->tileset()->wangSet(mIndex);
+
+    for (WangColorChange w : mRemovedWangColors) {
+        WangColor *wangColor = wangSet->edgeColorAt(w.index).data();
+        wangColor->setName(w.wangColor->name());
+        wangColor->setImageId(w.wangColor->imageId());
+        wangColor->setColor(w.wangColor->color());
+        wangColor->setProbability(w.wangColor->probability());
+    }
 
     QUndoCommand::undo();
 }
@@ -83,9 +97,6 @@ void ChangeWangSetEdges::undo()
 void ChangeWangSetEdges::redo()
 {
     mWangSetModel->setWangSetEdges(mIndex, mNewValue);
-
-    if (!mAffectedTiles.isEmpty())
-        emit mTilesetDocument->tileWangSetChanged(mAffectedTiles);
 
     QUndoCommand::redo();
 }
@@ -98,13 +109,12 @@ ChangeWangSetCorners::ChangeWangSetCorners(TilesetDocument *tilesetDocument,
     , mTilesetDocument(tilesetDocument)
     , mWangSetModel(tilesetDocument->wangSetModel())
     , mIndex(index)
-    , mOldValue(tilesetDocument->tileset()->wangSet(index)->cornerColors())
+    , mOldValue(tilesetDocument->tileset()->wangSet(index)->cornerColorCount())
     , mNewValue(newValue)
 {
     //when corner size changes, all tiles with wangIds need to be updated.
     WangSet *wangSet = mTilesetDocument->tileset()->wangSet(index);
     Q_ASSERT(wangSet);
-    mAffectedTiles = wangSet->tilesWithWangId();
 
     if (mNewValue < mOldValue) {
         //when the size is reduced, some wang assignments can be lost.
@@ -118,16 +128,38 @@ ChangeWangSetCorners::ChangeWangSetCorners(TilesetDocument *tilesetDocument,
 
             new ChangeTileWangId(mTilesetDocument, wangSet, changes, this);
         }
-    }
 
+        for (int i = mOldValue; i > mNewValue; --i) {
+            WangColorChange w;
+            w.index = i;
+            w.wangColor = wangSet->cornerColorAt(i);
+
+            mRemovedWangColors.append(w);
+        }
+
+        if (mNewValue == 1) {
+            WangColorChange w;
+            w.index = 1;
+            w.wangColor = wangSet->cornerColorAt(1);
+
+            mRemovedWangColors.append(w);
+        }
+    }
 }
 
 void ChangeWangSetCorners::undo()
 {
     mWangSetModel->setWangSetCorners(mIndex, mOldValue);
 
-    if (!mAffectedTiles.isEmpty())
-        emit mTilesetDocument->tileWangSetChanged(mAffectedTiles);
+    WangSet *wangSet = mTilesetDocument->tileset()->wangSet(mIndex);
+
+    for (WangColorChange w : mRemovedWangColors) {
+        WangColor *wangColor = wangSet->cornerColorAt(w.index).data();
+        wangColor->setName(w.wangColor->name());
+        wangColor->setImageId(w.wangColor->imageId());
+        wangColor->setColor(w.wangColor->color());
+        wangColor->setProbability(w.wangColor->probability());
+    }
 
     QUndoCommand::undo();
 }
@@ -136,8 +168,94 @@ void ChangeWangSetCorners::redo()
 {
     mWangSetModel->setWangSetCorners(mIndex, mNewValue);
 
-    if (!mAffectedTiles.isEmpty())
-        emit mTilesetDocument->tileWangSetChanged(mAffectedTiles);
+    QUndoCommand::redo();
+}
+
+RemoveWangSetColor::RemoveWangSetColor(TilesetDocument *tilesetDocumnet, int index, int color, bool isEdge)
+    : QUndoCommand(QCoreApplication::translate("Undo Commands",
+                                               "Remove Wang Color"))
+    , mTilesetDocument(tilesetDocumnet)
+    , mWangSetModel(tilesetDocumnet->wangSetModel())
+    , mIndex(index)
+    , mColor(color)
+    , mIsEdge(isEdge)
+{
+    WangSet *wangSet = mTilesetDocument->tileset()->wangSet(mIndex);
+
+    Q_ASSERT(wangSet);
+
+    if (mIsEdge) {
+        mRemovedWangColor = wangSet->edgeColorAt(mColor);
+
+        if (wangSet->edgeColorCount() == 2)
+            mExtraWangColor = wangSet->edgeColorAt((mColor << 1) % 3);
+        else
+            mExtraWangColor = nullptr;
+    } else {
+        mRemovedWangColor = wangSet->cornerColorAt(mColor);
+
+        if (wangSet->cornerColorCount() == 2)
+            mExtraWangColor = wangSet->cornerColorAt((mColor << 1) % 3);
+        else
+            mExtraWangColor = nullptr;
+    }
+
+    QList<Tile *> changedTiles = wangSet->tilesChangedOnRemoveColor(mColor, mIsEdge);
+
+    if (!changedTiles.isEmpty()) {
+        QVector<ChangeTileWangId::WangIdChange> changes;
+
+        for (Tile *tile : changedTiles) {
+            WangId oldWangId = wangSet->wangIdOfTile(tile);
+            WangId changedWangId = oldWangId;
+
+            if (mIsEdge) {
+                for (int i = 0; i < 4; ++i) {
+                    int edgeColor = changedWangId.edgeColor(i);
+                    if (edgeColor && (edgeColor == mColor || wangSet->edgeColorCount() == 2))
+                        changedWangId.setEdgeColor(i, 0);
+                    else if (edgeColor > mColor)
+                        changedWangId.setEdgeColor(i, edgeColor - 1);
+                }
+            } else {
+                for (int i = 0; i < 4; ++i) {
+                    int cornerColor = changedWangId.cornerColor(i);
+                    if (cornerColor && (cornerColor == mColor || wangSet->cornerColorCount() == 2))
+                        changedWangId.setCornerColor(i, 0);
+                    else if (cornerColor > mColor)
+                        changedWangId.setCornerColor(i, cornerColor - 1);
+                }
+            }
+
+            changes.append(ChangeTileWangId::WangIdChange(oldWangId,
+                                                          changedWangId,
+                                                          tile));
+        }
+
+        new ChangeTileWangId(mTilesetDocument, wangSet, changes, this);
+    }
+}
+
+void RemoveWangSetColor::undo()
+{
+    if (mExtraWangColor) {
+        if (mRemovedWangColor->colorIndex() > mExtraWangColor->colorIndex()) {
+            mWangSetModel->insertWangColor(mIndex, mExtraWangColor);
+            mWangSetModel->insertWangColor(mIndex, mRemovedWangColor);
+        } else {
+            mWangSetModel->insertWangColor(mIndex, mRemovedWangColor);
+            mWangSetModel->insertWangColor(mIndex, mExtraWangColor);
+        }
+    } else {
+        mWangSetModel->insertWangColor(mIndex, mRemovedWangColor);
+    }
+
+    QUndoCommand::undo();
+}
+
+void RemoveWangSetColor::redo()
+{
+    mWangSetModel->removeWangColorAt(mIndex, mColor, mIsEdge);
 
     QUndoCommand::redo();
 }

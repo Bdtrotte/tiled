@@ -26,9 +26,10 @@
 #include "mapdocument.h"
 #include "maprenderer.h"
 #include "painttilelayer.h"
+#include "staggeredrenderer.h"
 #include "tilelayer.h"
-#include "wangset.h"
 
+#include <QStyleOptionGraphicsItem>
 #include <cmath>
 
 using namespace Tiled;
@@ -38,13 +39,77 @@ using namespace Internal;
 static const double MIDDLE_DEAD_ZONE = 0.25;
 static const double EDGE_DEAD_ZONE = 0.2;
 
+class WangBrushItem : public BrushItem
+{
+public:
+    WangBrushItem()
+        : BrushItem()
+        , mIsValid(true) {}
+
+    QRectF boundingRect() const override;
+
+    void paint(QPainter *painter,
+               const QStyleOptionGraphicsItem *option,
+               QWidget *widget) override;
+
+    void setInvalidTiles(const QRegion &region = QRegion());
+    bool isValid() const { return mIsValid; }
+
+private:
+    //there is a current brush
+    bool mIsValid;
+    //The tiles which can't be painted.
+    QRegion mInvalidTiles;
+};
+
+QRectF WangBrushItem::boundingRect() const
+{
+    if (mIsValid) {
+        return BrushItem::boundingRect();
+    } else {
+        QRect bounds = mInvalidTiles.boundingRect();
+        QRectF bounding = mapDocument()->renderer()->boundingRect(bounds);
+        return bounding;
+    }
+}
+
+void WangBrushItem::paint(QPainter *painter,
+                          const QStyleOptionGraphicsItem *option,
+                          QWidget *widget)
+{
+    if (mIsValid) {
+        BrushItem::paint(painter, option, widget);
+    } else {
+        const MapRenderer *renderer = mapDocument()->renderer();
+        QColor invalid(255, 0, 0, 64);
+
+        renderer->drawTileSelection(painter,
+                                    mInvalidTiles,
+                                    invalid,
+                                    option->exposedRect);
+    }
+}
+
+void WangBrushItem::setInvalidTiles(const QRegion &region)
+{
+    if (region.isEmpty()) {
+        mIsValid = true;
+    } else {
+        mIsValid = false;
+        mInvalidTiles = region;
+
+        update();
+    }
+}
+
 WangBrush::WangBrush(QObject *parent)
     : AbstractTileTool(tr("Wang Brush"),
                       QIcon(QLatin1String(
                                 ":images/24x24/wangtile-edit.png")),
                       QKeySequence(tr("G")),
-                      parent)
-    , mEdgeDir(0)
+                      parent,
+                      new WangBrushItem)
+    , mEdgeDir(WangId::Top)
     , mWangSet(nullptr)
     , mCurrentColor(0)
     , mBrushMode(Idle)
@@ -66,6 +131,14 @@ void WangBrush::mousePressed(QGraphicsSceneMouseEvent *event)
         switch (mBrushBehavior) {
         case Free:
             beginPaint();
+            break;
+        default:
+            break;
+        }
+    } else if (event->button() == Qt::RightButton) {
+        switch (mBrushBehavior) {
+        case Free:
+            captureHoverColor();
             break;
         default:
             break;
@@ -132,10 +205,29 @@ void WangBrush::mouseMoved(const QPointF &pos, Qt::KeyboardModifiers modifiers)
     QPoint tilePos;
 
     if (mBrushMode == PaintVertex) {
-        tilePos = tilePosF.toPoint();
+        if (StaggeredRenderer *staggeredRenderer = dynamic_cast<StaggeredRenderer*>(mapDocument()->renderer())) {
+            double x, y;
+            QPointF tileLocalPoint(modf(tilePosF.x(), &x),
+                                   modf(tilePosF.y(), &y));
+            if (tileLocalPoint.x() < 0.5) {
+                if (tileLocalPoint.y() < 0.5)
+                    tilePos = staggeredRenderer->topRight(x, y);
+                else
+                    tilePos = QPoint(x, y);
+            } else {
+                if (tileLocalPoint.y() < 0.5)
+                    tilePos = QPoint((mapDocument()->map()->staggerAxis() == Map::StaggerX)? x + 2 : x + 1, y);
+                else
+                    tilePos = staggeredRenderer->bottomRight(x, y);
+            }
+        } else {
+            tilePos = tilePosF.toPoint();
+        }
+
         if (tilePos != mPaintPoint) {
             mPaintPoint = tilePos;
             stateChanged();
+            updateStatusInfo();
         }
     } else {
         double x, y;
@@ -152,19 +244,19 @@ void WangBrush::mouseMoved(const QPointF &pos, Qt::KeyboardModifiers modifiers)
                 return;
 
             switch (mEdgeDir) {
-            case 0:
+            case WangId::Top:
                 if (tileLocalPoint.y() < EDGE_DEAD_ZONE)
                     return;
                 break;
-            case 1:
+            case WangId::Right:
                 if (tileLocalPoint.x() > 1 - EDGE_DEAD_ZONE)
                     return;
                 break;
-            case 2:
+            case WangId::Bottom:
                 if (tileLocalPoint.y() > 1 - EDGE_DEAD_ZONE)
                     return;
                 break;
-            case 3:
+            case WangId::Left:
                 if (tileLocalPoint.x() < EDGE_DEAD_ZONE)
                     return;
                 break;
@@ -172,24 +264,25 @@ void WangBrush::mouseMoved(const QPointF &pos, Qt::KeyboardModifiers modifiers)
         }
 
         //calculate new edge
-        int dir;
+        WangId::Edges dir;
 
         if (tileLocalPoint.y() > tileLocalPoint.x()) {
             if (tileLocalPoint.y() > 1 - tileLocalPoint.x())
-                dir = 2;
+                dir = WangId::Bottom;
             else
-                dir = 3;
+                dir = WangId::Left;
         } else {
             if (tileLocalPoint.y() > 1 - tileLocalPoint.x())
-                dir = 1;
+                dir = WangId::Right;
             else
-                dir = 0;
+                dir = WangId::Top;
         }
 
         if (dir != mEdgeDir || tilePos != mPaintPoint) {
             mEdgeDir = dir;
             mPaintPoint = tilePos;
             stateChanged();
+            updateStatusInfo();
         }
     }
 }
@@ -214,6 +307,36 @@ void WangBrush::mapDocumentChanged(MapDocument *oldDocument, MapDocument *newDoc
     AbstractTileTool::mapDocumentChanged(oldDocument, newDocument);
 }
 
+void WangBrush::updateStatusInfo()
+{
+    if (brushItem()->isVisible()) {
+        QString wangColor;
+        if (mWangSet) {
+            if (mBrushMode == PaintEdge)
+                wangColor = mWangSet->edgeColorAt(mCurrentColor)->name();
+            else if (mBrushMode == PaintVertex)
+                wangColor = mWangSet->cornerColorAt(mCurrentColor)->name();
+        }
+
+        if (!wangColor.isEmpty())
+            wangColor = QString(QLatin1String(" [%1]")).arg(wangColor);
+
+        QString extraInfo;
+        if (!static_cast<WangBrushItem*>(brushItem())->isValid())
+            extraInfo = QString(QLatin1String(" (%1)"))
+                        .arg(tr("Missing wang tile transition"));
+
+        setStatusInfo(QString(QLatin1String("%1, %2%3%4"))
+                      .arg(mPaintPoint.x())
+                      .arg(mPaintPoint.y())
+                      .arg(wangColor)
+                      .arg(extraInfo));
+
+    } else {
+        setStatusInfo(QString());
+    }
+}
+
 void WangBrush::wangColorChanged(int color, bool edge)
 {
     if (!color) {
@@ -229,7 +352,37 @@ void WangBrush::wangColorChanged(int color, bool edge)
 
 void WangBrush::wangSetChanged(WangSet *wangSet)
 {
+    mCurrentColor = 0;
+    mBrushMode = Idle;
     mWangSet = wangSet;
+}
+
+void WangBrush::captureHoverColor()
+{
+    TileLayer *tileLayer = currentTileLayer();
+    Q_ASSERT(tileLayer);
+
+    QPoint mousePoint = mPaintPoint - tileLayer->position();
+
+    if (!tileLayer->contains(mousePoint))
+        return;
+
+    const Cell &cell = tileLayer->cellAt(mousePoint);
+
+    if (WangId wangId = mWangSet->wangIdOfCell(cell)) {
+        int newColor = 0;
+
+        if (mBrushMode == PaintVertex)
+            newColor = wangId.cornerColor(WangId::TopLeft);
+        else if (mBrushMode == PaintEdge)
+            newColor = wangId.edgeColor(mEdgeDir);
+
+        if (newColor && newColor != mCurrentColor) {
+            mCurrentColor = newColor;
+            emit colorCaptured(newColor, mBrushMode == PaintEdge);
+            updateBrush();
+        }
+    }
 }
 
 void WangBrush::stateChanged()
@@ -309,12 +462,53 @@ void WangBrush::updateBrush()
 
     SharedTileLayer stamp;
 
+    auto staggeredRenderer = dynamic_cast<StaggeredRenderer*>(mapDocument()->renderer());
+
     if (mIsTileMode) {
-        stamp = SharedTileLayer(new TileLayer(QString(),
+        if (staggeredRenderer) {
+            if (mapDocument()->map()->staggerAxis() == Map::StaggerX)
+                stamp = SharedTileLayer(new TileLayer(QString(),
+                                                      mPaintPoint.x() - 2,
+                                                      mPaintPoint.y() - 1,
+                                                      5,
+                                                      3));
+            else
+                stamp = SharedTileLayer(new TileLayer(QString(),
+                                                      mPaintPoint.x() - 1,
+                                                      mPaintPoint.y() - 2,
+                                                      3,
+                                                      5));
+        } else {
+            stamp = SharedTileLayer(new TileLayer(QString(),
                                                   mPaintPoint.x() - 1,
                                                   mPaintPoint.y() - 1,
                                                   3,
                                                   3));
+        }
+
+        //array of adjacent positions which is assigned based on map orientation.
+        QPoint adjacentPositions[8];
+        if (staggeredRenderer) {
+            adjacentPositions[0] = staggeredRenderer->topRight(mPaintPoint.x(), mPaintPoint.y());
+            adjacentPositions[2] = staggeredRenderer->bottomRight(mPaintPoint.x(), mPaintPoint.y());
+            adjacentPositions[4] = staggeredRenderer->bottomLeft(mPaintPoint.x(), mPaintPoint.y());
+            adjacentPositions[6] = staggeredRenderer->topLeft(mPaintPoint.x(), mPaintPoint.y());
+
+            if (mapDocument()->map()->staggerAxis() == Map::StaggerX) {
+                adjacentPositions[1] = mPaintPoint + QPoint(2, 0);
+                adjacentPositions[3] = mPaintPoint + QPoint(0, 1);
+                adjacentPositions[5] = mPaintPoint + QPoint(-2, 0);
+                adjacentPositions[7] = mPaintPoint + QPoint(0, -1);
+            } else {
+                adjacentPositions[1] = mPaintPoint + QPoint(1, 0);
+                adjacentPositions[3] = mPaintPoint + QPoint(0, 2);
+                adjacentPositions[5] = mPaintPoint + QPoint(-1, 0);
+                adjacentPositions[7] = mPaintPoint + QPoint(0, -2);
+            }
+        } else {
+            for (int i = 0; i < 8; ++i)
+                adjacentPositions[i] = mPaintPoint + aroundTilePoints[i];
+        }
 
         if (currentLayer->contains(mPaintPoint)) {
             WangId centerWangId = mWangSet->wangIdOfCell(currentLayer->cellAt(mPaintPoint));
@@ -327,17 +521,28 @@ void WangBrush::updateBrush()
             }
 
             const Cell &cell = mWangSet->findMatchingWangTile(centerWangId).makeCell();
-            if (cell.isEmpty())
-                return;
+            if (cell.isEmpty()) {
+                QRegion r = QRect(mPaintPoint, QSize(1, 1));
+                for (int i = 0; i < 8; i += 2)
+                    r += QRect(adjacentPositions[i], QSize(1, 1));
+                if (mBrushMode == PaintVertex) {
+                    for (int i = 1; i < 8; i += 2)
+                        r += QRect(adjacentPositions[i], QSize(1, 1));
+                }
 
-            stamp->setCell(1, 1, cell);
+                static_cast<WangBrushItem*>(brushItem())->setInvalidTiles(r);
+                return;
+            }
+
+            QPoint p = mPaintPoint - stamp->position();
+            stamp->setCell(p.x(), p.y(), cell);
         }
 
         for (int i = 0; i < 8; ++i) {
             if ((mBrushMode == PaintEdge) && (i & 1))
                 continue;
 
-            QPoint p = mPaintPoint + aroundTilePoints[i];
+            QPoint p = adjacentPositions[i];
             if (!currentLayer->contains(p) || currentLayer->cellAt(p).isEmpty())
                 continue;
 
@@ -359,22 +564,62 @@ void WangBrush::updateBrush()
 
             const Cell &cell = mWangSet->findMatchingWangTile(wangId).makeCell();
 
-            if (cell.isEmpty())
-                return;
+            if (cell.isEmpty()) {
+                QRegion r = QRect(mPaintPoint, QSize(1, 1));
+                for (int j = 0; j < 8; j += 2)
+                    r += QRect(adjacentPositions[j], QSize(1, 1));
+                if (mBrushMode == PaintVertex) {
+                    for (int j = 1; j < 8; j += 2)
+                        r += QRect(adjacentPositions[j], QSize(1, 1));
+                }
 
-            p += QPoint(1, 1) - mPaintPoint;
+                static_cast<WangBrushItem*>(brushItem())->setInvalidTiles(r);
+                return;
+            }
+
+            p -= stamp->position();
             stamp->setCell(p.x(), p.y(), cell);
         }
     } else {
         if (mBrushMode == PaintVertex) {
-            stamp = SharedTileLayer(new TileLayer(QString(),
-                                                  mPaintPoint.x() - 1,
-                                                  mPaintPoint.y() - 1,
-                                                  2,
-                                                  2));
+            if (staggeredRenderer) {
+                if (mapDocument()->map()->staggerAxis() == Map::StaggerX)
+                    stamp = SharedTileLayer(new TileLayer(QString(),
+                                                          mPaintPoint.x() - 2,
+                                                          mPaintPoint.y() - 1,
+                                                          3,
+                                                          3));
+                else
+                    stamp = SharedTileLayer(new TileLayer(QString(),
+                                                          mPaintPoint.x() - 1,
+                                                          mPaintPoint.y() - 1,
+                                                          2,
+                                                          3));
+            } else {
+                stamp = SharedTileLayer(new TileLayer(QString(),
+                                                      mPaintPoint.x() - 1,
+                                                      mPaintPoint.y() - 1,
+                                                      2,
+                                                      2));
+            }
+
+            QPoint adjacentPoints[4];
+            if (staggeredRenderer) {
+                adjacentPoints[0] = mPaintPoint;
+                adjacentPoints[1] = staggeredRenderer->bottomLeft(mPaintPoint.x(), mPaintPoint.y());
+                adjacentPoints[3] = staggeredRenderer->topLeft(mPaintPoint.x(), mPaintPoint.y());
+
+                if (mapDocument()->map()->staggerAxis() == Map::StaggerX)
+                    adjacentPoints[2] = mPaintPoint + QPoint(-2, 0);
+                else
+                    adjacentPoints[2] = mPaintPoint + QPoint(-1, 0);
+            } else {
+                for (int i = 0; i < 4; ++i)
+                    adjacentPoints[i] = mPaintPoint + aroundVertexPoints[i];
+            }
 
             for (int i = 0; i < 4; ++i) {
-                QPoint p = mPaintPoint + aroundVertexPoints[i];
+                QPoint p = adjacentPoints[i];
 
                 if (!currentLayer->contains(p) || currentLayer->cellAt(p).isEmpty())
                     continue;
@@ -388,54 +633,95 @@ void WangBrush::updateBrush()
 
                 const Cell &cell = mWangSet->findMatchingWangTile(wangId).makeCell();
 
-                if (cell.isEmpty())
-                    return;
+                if (cell.isEmpty()) {
+                    QRegion r;
+                    for (int j = 0; j < 4; ++j)
+                        r += QRect(adjacentPoints[j], QSize(1, 1));
 
-                p += QPoint(1, 1) - mPaintPoint;
+                    static_cast<WangBrushItem*>(brushItem())->setInvalidTiles(r);
+                    return;
+                }
+
+                p -= stamp->position();
                 stamp->setCell(p.x(), p.y(), cell);
             }
         } else {
-            stamp = SharedTileLayer(new TileLayer(QString(),
-                                                  mPaintPoint.x() + ((mEdgeDir & 1)? ((mEdgeDir == 3)? -1 : 0) : 0),
-                                                  mPaintPoint.y() + ((mEdgeDir & 1)? 0 : ((mEdgeDir == 0)? -1 : 0)),
-                                                  (mEdgeDir & 1)? 2 : 1,
-                                                  (mEdgeDir & 1)? 1 : 2));
+            if (staggeredRenderer) {
+                stamp = SharedTileLayer(new TileLayer(QString(),
+                                                      mPaintPoint.x() - 1,
+                                                      mPaintPoint.y() - 1,
+                                                      3,
+                                                      3));
+            } else {
+                stamp = SharedTileLayer(new TileLayer(QString(),
+                                                      mPaintPoint.x() + ((mEdgeDir & 1)? ((mEdgeDir == 3)? -1 : 0) : 0),
+                                                      mPaintPoint.y() + ((mEdgeDir & 1)? 0 : ((mEdgeDir == 0)? -1 : 0)),
+                                                      (mEdgeDir & 1)? 2 : 1,
+                                                      (mEdgeDir & 1)? 1 : 2));
+            }
 
-            QPoint p = mPaintPoint;
+            QPoint dirPoint;
+            if (staggeredRenderer) {
+                switch (mEdgeDir) {
+                case 0:
+                    dirPoint = staggeredRenderer->topRight(mPaintPoint.x(), mPaintPoint.y());
+                    break;
+                case 1:
+                    dirPoint = staggeredRenderer->bottomRight(mPaintPoint.x(), mPaintPoint.y());
+                    break;
+                case 2:
+                    dirPoint = staggeredRenderer->bottomLeft(mPaintPoint.x(), mPaintPoint.y());
+                    break;
+                case 3:
+                    dirPoint = staggeredRenderer->topLeft(mPaintPoint.x(), mPaintPoint.y());
+                    break;
+                }
+            } else {
+                dirPoint = mPaintPoint + aroundTilePoints[mEdgeDir*2];
+            }
 
-            if (currentLayer->contains(p)) {
-                WangId wangId = mWangSet->wangIdOfCell(currentLayer->cellAt(p));
-                if (wangId && !currentLayer->cellAt(p).isEmpty()) {
+            if (currentLayer->contains(mPaintPoint)) {
+                WangId wangId = mWangSet->wangIdOfCell(currentLayer->cellAt(mPaintPoint));
+
+                if (wangId && !currentLayer->cellAt(mPaintPoint).isEmpty()) {
                     wangId.setEdgeColor(mEdgeDir, mCurrentColor);
 
                     const Cell &cell = mWangSet->findMatchingWangTile(wangId).makeCell();
 
-                    if (cell.isEmpty())
+                    if (cell.isEmpty()) {
+                        QRegion r = QRect(mPaintPoint, QSize(1, 1));
+                        r += QRect(dirPoint, QSize(1, 1));
+                        static_cast<WangBrushItem*>(brushItem())->setInvalidTiles(r);
                         return;
+                    }
 
-                    p -= stamp->position();
+                    QPoint p = mPaintPoint - stamp->position();
                     stamp->setCell(p.x(), p.y(), cell);
                 }
             }
 
-            p = mPaintPoint + aroundTilePoints[mEdgeDir*2];
+            if (currentLayer->contains(dirPoint)) {
+                WangId wangId = mWangSet->wangIdOfCell(currentLayer->cellAt(dirPoint));
 
-            if (currentLayer->contains(p)) {
-                WangId wangId = mWangSet->wangIdOfCell(currentLayer->cellAt(p));
-                if (wangId && !currentLayer->cellAt(p).isEmpty()) {
+                if (wangId && !currentLayer->cellAt(dirPoint).isEmpty()) {
                     wangId.setEdgeColor((mEdgeDir + 2) % 4, mCurrentColor);
 
                     const Cell &cell = mWangSet->findMatchingWangTile(wangId).makeCell();
 
-                    if (cell.isEmpty())
+                    if (cell.isEmpty()) {
+                        QRegion r = QRect(mPaintPoint, QSize(1, 1));
+                        r += QRect(dirPoint, QSize(1, 1));
+                        static_cast<WangBrushItem*>(brushItem())->setInvalidTiles(r);
                         return;
+                    }
 
-                    p -= stamp->position();
-                    stamp->setCell(p.x(), p.y(), cell);
+                    dirPoint -= stamp->position();
+                    stamp->setCell(dirPoint.x(), dirPoint.y(), cell);
                 }
             }
         }
     }
 
+    static_cast<WangBrushItem*>(brushItem())->setInvalidTiles();
     brushItem()->setTileLayer(stamp);
 }

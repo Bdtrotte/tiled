@@ -21,11 +21,9 @@
 #pragma once
 
 #include "abstracttiletool.h"
+#include "wangset.h"
 
 namespace Tiled {
-
-class WangSet;
-
 namespace Internal {
 
 class WangBrush : public AbstractTileTool
@@ -58,6 +56,10 @@ public:
 protected:
     void tilePositionChanged(const QPoint &tilePos) override;
     void mapDocumentChanged(MapDocument *oldDocument, MapDocument *newDocument) override;
+    void updateStatusInfo() override;
+
+signals:
+    void colorCaptured(int color, bool isEdge);
 
 public slots:
     void wangColorChanged(int color, bool edge);
@@ -69,13 +71,14 @@ private:
         Paint
     };
 
+    //sets the current wang color to the corner/edge currently hovered
+    void captureHoverColor();
+
     //called when something has changed which requires an update.
     void stateChanged();
 
     void beginPaint();
-
     void doPaint(bool mergeable);
-
     void updateBrush();
 
     //The point painting happens around
@@ -84,7 +87,7 @@ private:
     //In edge mode, this is a tile with that edge
     //With mEdge being the direction of the edge (0 being top 3 being left)
     QPoint mPaintPoint;
-    int mEdgeDir;
+    WangId::Edges mEdgeDir;
 
     WangSet *mWangSet;
     int mCurrentColor;

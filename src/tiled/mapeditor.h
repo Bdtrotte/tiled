@@ -53,6 +53,7 @@ class MiniMapDock;
 class ObjectsDock;
 class PropertiesDock;
 class ReversingProxyModel;
+class ShapeFillTool;
 class StampBrush;
 class TerrainBrush;
 class TerrainDock;
@@ -167,6 +168,7 @@ private:
 
     StampBrush *mStampBrush;
     BucketFillTool *mBucketFillTool;
+    ShapeFillTool *mShapeFillTool;
     TerrainBrush *mTerrainBrush;
     WangBrush *mWangBrush;
 
