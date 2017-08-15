@@ -22,6 +22,7 @@ AbstractTileFillTool::AbstractTileFillTool(const QString &name,
     , mIsWangFill(false)
     , mLastRandomStatus(false)
     , mStampActions(new StampActions(this))
+    , mWangSet(nullptr)
 {
     connect(mStampActions->random(), &QAction::toggled, this, &AbstractTileFillTool::randomChanged);
     connect(mStampActions->wangFill(), &QAction::toggled, this, &AbstractTileFillTool::wangFillChanged);
