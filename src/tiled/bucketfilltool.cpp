@@ -29,6 +29,7 @@
 #include "tile.h"
 #include "mapdocument.h"
 #include "painttilelayer.h"
+#include "staggeredrenderer.h"
 #include "stampactions.h"
 
 #include <QApplication>
@@ -41,6 +42,7 @@ BucketFillTool::BucketFillTool(QObject *parent)
                            QIcon(QLatin1String(
                                    ":images/22x22/stock-tool-bucket-fill.png")),
                            QKeySequence(tr("F")),
+                           nullptr,
                            parent)
 {
 }

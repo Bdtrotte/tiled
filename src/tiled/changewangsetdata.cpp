@@ -190,14 +190,14 @@ RemoveWangSetColor::RemoveWangSetColor(TilesetDocument *tilesetDocumnet, int ind
         if (wangSet->edgeColorCount() == 2)
             mExtraWangColor = wangSet->edgeColorAt((mColor << 1) % 3);
         else
-            mExtraWangColor = nullptr;
+            mExtraWangColor = QSharedPointer<WangColor>();
     } else {
         mRemovedWangColor = wangSet->cornerColorAt(mColor);
 
         if (wangSet->cornerColorCount() == 2)
             mExtraWangColor = wangSet->cornerColorAt((mColor << 1) % 3);
         else
-            mExtraWangColor = nullptr;
+            mExtraWangColor = QSharedPointer<WangColor>();
     }
 
     QList<Tile *> changedTiles = wangSet->tilesChangedOnRemoveColor(mColor, mIsEdge);

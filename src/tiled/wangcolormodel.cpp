@@ -226,7 +226,7 @@ int WangColorModel::colorAt(const QModelIndex &index) const
 QSharedPointer<WangColor> WangColorModel::wangColorAt(const QModelIndex &index) const
 {
     if (!index.isValid())
-        return nullptr;
+        return QSharedPointer<WangColor>();
 
     if (isEdgeColorAt(index))
         return mWangSet->edgeColorAt(colorAt(index));

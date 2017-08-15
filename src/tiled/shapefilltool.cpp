@@ -39,6 +39,7 @@ ShapeFillTool::ShapeFillTool(QObject *parent)
                            QIcon(QLatin1String(
                                      ":images/22x22/stock-tool-bucket-fill.png")),
                            QKeySequence(tr("P")),
+                           nullptr,
                            parent)
     , mToolBehavior(Free)
     , mCurrentShape(Rect)

@@ -15,14 +15,13 @@ using namespace Internal;
 AbstractTileFillTool::AbstractTileFillTool(const QString &name,
                                            const QIcon &icon,
                                            const QKeySequence &shortcut,
-                                           QObject *parent,
-                                           BrushItem *brushItem)
-    : AbstractTileTool(name, icon, shortcut, parent, brushItem)
+                                           BrushItem *brushItem,
+                                           QObject *parent)
+    : AbstractTileTool(name, icon, shortcut, brushItem, parent)
     , mIsRandom(false)
     , mIsWangFill(false)
     , mLastRandomStatus(false)
     , mStampActions(new StampActions(this))
-    , mWangFiller(new WangFiller(nullptr))
 {
     connect(mStampActions->random(), &QAction::toggled, this, &AbstractTileFillTool::randomChanged);
     connect(mStampActions->wangFill(), &QAction::toggled, this, &AbstractTileFillTool::wangFillChanged);
@@ -102,7 +101,7 @@ void AbstractTileFillTool::setWangFill(bool value)
 
 void AbstractTileFillTool::setWangSet(WangSet *wangSet)
 {
-    mWangFiller->setWangSet(wangSet);
+    mWangSet = wangSet;
 
     updateRandomListAndMissingTilesets();
 }
@@ -135,8 +134,8 @@ void AbstractTileFillTool::updateRandomListAndMissingTilesets()
     if (!mapDocument())
         return;
 
-    if (mIsWangFill && mWangFiller->wangSet()) {
-        const SharedTileset &tileset = mWangFiller->wangSet()->tileset()->sharedPointer();
+    if (mWangSet) {
+        const SharedTileset &tileset = mWangSet->tileset()->sharedPointer();
         if (!mapDocument()->map()->tilesets().contains(tileset))
             mMissingTilesets.append(tileset);
     } else {
@@ -173,13 +172,15 @@ void AbstractTileFillTool::wangFill(TileLayer &tileLayerToFill,
                                     const TileLayer &backgroundTileLayer,
                                     const QRegion &region) const
 {
-    if (region.isEmpty() || !mWangFiller->wangSet())
+    if (!mWangSet)
         return;
 
-    TileLayer *stamp = mWangFiller->fillRegion(backgroundTileLayer,
-                                               region,
-                                               dynamic_cast<StaggeredRenderer*>(mapDocument()->renderer()),
-                                               mapDocument()->map()->staggerAxis());
+    WangFiller wangFiller(mWangSet,
+                          dynamic_cast<StaggeredRenderer *>(mapDocument()->renderer()),
+                          mapDocument()->map()->staggerAxis());
+
+    TileLayer *stamp = wangFiller.fillRegion(backgroundTileLayer,
+                                              region);
 
     tileLayerToFill.setCells(0, 0, stamp);
     delete stamp;

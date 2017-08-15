@@ -44,13 +44,13 @@ public:
     {}
 
     QSize sizeHint(const QStyleOptionViewItem &option,
-                  const QModelIndex &index) const;
+                  const QModelIndex &index) const override;
 
     void paint(QPainter *painter,
                const QStyleOptionViewItem &option,
                const QModelIndex &index) const override;
 
-    void setEditorData(QWidget *editor, const QModelIndex &index) const;
+    void setEditorData(QWidget *editor, const QModelIndex &index) const override;
 
 private:
     WangColorView *mWangColorView;
@@ -187,6 +187,7 @@ void WangColorView::contextMenuEvent(QContextMenuEvent *event)
 void WangColorView::pickColor()
 {
     QColorDialog *colorPicker = new QColorDialog(this);
+    colorPicker->setAttribute(Qt::WA_DeleteOnClose);
     connect(colorPicker, &QColorDialog::colorSelected,
             this, &WangColorView::colorPicked);
 

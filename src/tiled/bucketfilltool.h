@@ -66,7 +66,6 @@ private slots:
 private:
     bool mLastShiftStatus;
 
-
     void makeConnections();
 };
 
