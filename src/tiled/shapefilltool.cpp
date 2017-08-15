@@ -21,6 +21,7 @@
 #include "shapefilltool.h"
 
 #include "addremovetileset.h"
+#include "customshapedialog.h"
 #include "brushitem.h"
 #include "mapdocument.h"
 #include "painttilelayer.h"
@@ -170,15 +171,33 @@ void ShapeFillTool::tilePositionChanged(const QPoint&)
 
 void ShapeFillTool::setCurrentShape(Shape shape)
 {
-    if (shape == mCurrentShape)
-        return;
-
     if (shape != Custom) {
         mCurrentShape = shape;
         return;
     }
 
+    CustomShapeDialog dialog(mapDocument()->map());
 
+    connect(&dialog, &CustomShapeDialog::shapeSelected,
+            this, &ShapeFillTool::onShapeSelected);
+
+    dialog.exec();
+
+    if (mCurrentShape != Custom) {
+        mCurrentShape = Rect;
+        mRectFill->setChecked(true);
+    }
+}
+
+void ShapeFillTool::onShapeSelected(QPolygonF polygon)
+{
+    if (polygon.isEmpty()) {
+        mRectFill->setChecked(true);
+        mCurrentShape = Rect;
+    } else {
+        mCurrentPolygon = polygon;
+        mCurrentShape = Custom;
+    }
 }
 
 void ShapeFillTool::updateFillOverlay()

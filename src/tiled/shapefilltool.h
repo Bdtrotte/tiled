@@ -47,6 +47,9 @@ protected:
     void tilePositionChanged(const QPoint&) override;
     void clearConnections(MapDocument *) override {}
 
+private slots:
+    void onShapeSelected(QPolygonF polygon);
+
 private:
     enum ToolBehavior {
         Free, //nothing has been started

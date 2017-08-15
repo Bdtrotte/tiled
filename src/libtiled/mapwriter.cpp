@@ -224,6 +224,22 @@ void MapWriterPrivate::writeMap(QXmlStreamWriter &w, const Map &map)
         firstGid += tileset->nextTileId();
     }
 
+    for (const QPolygonF &p : map.shapes()) {
+        w.writeStartElement(QLatin1String("shape"));
+
+        QString points;
+        for (const QPointF &point : p) {
+            points.append(QString::number(point.x()));
+            points.append(QLatin1Char(','));
+            points.append(QString::number(point.y()));
+            points.append(QLatin1Char(' '));
+        }
+        points.chop(1);
+        w.writeAttribute(QLatin1String("points"), points);
+
+        w.writeEndElement();
+    }
+
     writeLayers(w, map.layers());
 
     w.writeEndElement();

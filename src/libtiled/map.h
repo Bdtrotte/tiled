@@ -374,6 +374,10 @@ public:
     int takeNextObjectId();
     void initializeObjectIds(ObjectGroup &objectGroup);
 
+    const QList<QPolygonF> &shapes() const { return mShapes; }
+    void addShape(const QPolygonF &polygon) { mShapes.append(polygon); }
+    void removeShape(int index) { mShapes.removeAt(index); }
+
 private:
     friend class GroupLayer;    // so it can call adoptLayer
 
@@ -397,6 +401,7 @@ private:
     QVector<SharedTileset> mTilesets;
     LayerDataFormat mLayerDataFormat;
     int mNextObjectId;
+    QList<QPolygonF> mShapes;
 };
 
 
