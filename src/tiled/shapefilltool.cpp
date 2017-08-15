@@ -211,7 +211,7 @@ void ShapeFillTool::updateFillOverlay()
     int height = tilePosition().y() - mStartCorner.y();
 
     if (QApplication::keyboardModifiers() & Qt::ShiftModifier) {
-        int min = std::min(std::abs(width), std::abs(height));
+        int min = std::min(abs(width), abs(height));
         width = ((width > 0) - (width < 0))*min;
         height = ((height > 0) - (height < 0))*min;
     }
@@ -221,11 +221,11 @@ void ShapeFillTool::updateFillOverlay()
 
     switch (mCurrentShape) {
     case Rect:
-        mFillRegion = QRegion(left, top, std::abs(width), std::abs(height),
+        mFillRegion = QRegion(left, top, abs(width), abs(height),
                               QRegion::Rectangle);
         break;
     case Circle:
-        mFillRegion = QRegion(left, top, std::abs(width), std::abs(height),
+        mFillRegion = QRegion(left, top, abs(width), abs(height),
                               QRegion::Ellipse);
         break;
     case Custom:
