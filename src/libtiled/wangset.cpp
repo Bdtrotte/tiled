@@ -315,26 +315,6 @@ WangSet::WangSet(Tileset *tileset,
     mImageTileId(imageTileId),
     mUniqueFullWangIdCount(0)
 {
-    Q_ASSERT(edgeColorCount() <= 15 && cornerColorCount() <= 15);
-
-    mEdgeColors.append(nullptr);
-    for (int i = 1; i <= edgeColorCount(); ++i) {
-        mEdgeColors.append(QSharedPointer<WangColor>(new WangColor(i,
-                                                true,
-                                                QString(),
-                                                defaultWangColors[i - 1],
-                                                -1)));
-    }
-
-    mCornerColors.append(nullptr);
-    for (int i = 1; i <= cornerColorCount(); ++i) {
-        mCornerColors.append(QSharedPointer<WangColor>(new WangColor(i,
-                                                  false,
-                                                  QString(),
-                                                  defaultWangColors[i - 1],
-                                                  -1)));
-    }
-
 }
 
 int WangSet::edgeColorCount() const
