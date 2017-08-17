@@ -130,6 +130,8 @@ SOURCES += aboutdialog.cpp \
     createtemplatetool.cpp \
     createtextobjecttool.cpp \
     createtileobjecttool.cpp \
+    customshapedialog.cpp \
+    customshapedialogundocommands.cpp \
     document.cpp \
     documentmanager.cpp \
     editor.cpp \
@@ -326,6 +328,8 @@ HEADERS += aboutdialog.h \
     createtemplatetool.h \
     createtextobjecttool.h \
     createtileobjecttool.h \
+    customshapedialog.h \
+    customshapedialogundocommands.h \
     document.h \
     documentmanager.h \
     editor.h \
@@ -466,6 +470,7 @@ HEADERS += aboutdialog.h \
 FORMS += aboutdialog.ui \
     addpropertydialog.ui \
     commanddialog.ui \
+    customshapedialog.ui \
     exportasimagedialog.ui \
     imagecolorpickerwidget.ui \
     mainwindow.ui \

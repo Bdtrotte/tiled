@@ -392,6 +392,11 @@ public:
     int takeNextObjectId();
     void initializeObjectIds(ObjectGroup &objectGroup);
 
+    const QList<QPolygonF> &shapes() const { return mShapes; }
+    void addShape(const QPolygonF &polygon) { mShapes.append(polygon); }
+    void insertShape(int index, const QPolygonF &polygon) { mShapes.insert(index, polygon); }
+    void removeShape(int index) { mShapes.removeAt(index); }
+
 private:
     friend class GroupLayer;    // so it can call adoptLayer
 
@@ -417,6 +422,7 @@ private:
     QList<TemplateGroup*> mTemplateGroups;
     LayerDataFormat mLayerDataFormat;
     int mNextObjectId;
+    QList<QPolygonF> mShapes;
 };
 
 

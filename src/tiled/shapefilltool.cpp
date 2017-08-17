@@ -22,6 +22,7 @@
 
 #include "addremovetileset.h"
 #include "brushitem.h"
+#include "customshapedialog.h"
 #include "geometry.h"
 #include "mapdocument.h"
 #include "painttilelayer.h"
@@ -45,9 +46,11 @@ ShapeFillTool::ShapeFillTool(QObject *parent)
     , mCurrentShape(Rect)
     , mRectFill(new QAction(this))
     , mCircleFill(new QAction(this))
+    , mCustomFill(new QAction(this))
 {
     QIcon rectFillIcon(QLatin1String(":images/22x22/rectangle-fill.png"));
     QIcon circleFillIcon(QLatin1String(":images/22x22/ellipse-fill.png"));
+    QIcon customFillIcon(QLatin1String(":images/22x22/polygon-fill.png"));
 
     mRectFill->setIcon(rectFillIcon);
     mRectFill->setCheckable(true);
@@ -56,10 +59,15 @@ ShapeFillTool::ShapeFillTool(QObject *parent)
     mCircleFill->setIcon(circleFillIcon);
     mCircleFill->setCheckable(true);
 
+    mCustomFill->setIcon(customFillIcon);
+    mCustomFill->setCheckable(true);
+
     connect(mRectFill, &QAction::triggered,
             [this] { setCurrentShape(Rect); });
     connect(mCircleFill, &QAction::triggered,
             [this] { setCurrentShape(Circle); });
+    connect(mCustomFill, &QAction::triggered,
+            [this] { setCurrentShape(Custom); });
 
     languageChanged();
 }
@@ -139,6 +147,7 @@ void ShapeFillTool::languageChanged()
 
     mRectFill->setToolTip(tr("Rectangle Fill"));
     mCircleFill->setToolTip(tr("Circle Fill"));
+    mCustomFill->setToolTip(tr("Select Custom Shape"));
 
     mStampActions->languageChanged();
 }
@@ -150,6 +159,7 @@ void ShapeFillTool::populateToolBar(QToolBar *toolBar)
     QActionGroup *actionGroup = new QActionGroup(toolBar);
     actionGroup->addAction(mRectFill);
     actionGroup->addAction(mCircleFill);
+    actionGroup->addAction(mCustomFill);
 
     toolBar->addSeparator();
     toolBar->addActions(actionGroup->actions());
@@ -163,8 +173,33 @@ void ShapeFillTool::tilePositionChanged(const QPoint&)
 
 void ShapeFillTool::setCurrentShape(Shape shape)
 {
-    mCurrentShape = shape;
-    return;
+    if (shape != Custom) {
+        mCurrentShape = shape;
+        return;
+    }
+
+    CustomShapeDialog dialog(mapDocument()->map());
+
+    connect(&dialog, &CustomShapeDialog::shapeSelected,
+            this, &ShapeFillTool::onShapeSelected);
+
+    dialog.exec();
+
+    if (mCurrentShape != Custom) {
+        mCurrentShape = Rect;
+        mRectFill->setChecked(true);
+    }
+}
+
+void ShapeFillTool::onShapeSelected(QPolygonF polygon)
+{
+    if (polygon.isEmpty()) {
+        mRectFill->setChecked(true);
+        mCurrentShape = Rect;
+    } else {
+        mCurrentPolygon = polygon;
+        mCurrentShape = Custom;
+    }
 }
 
 void ShapeFillTool::updateFillOverlay()
@@ -197,6 +232,9 @@ void ShapeFillTool::updateFillOverlay()
                                     boundingRect.right(),
                                     boundingRect.bottom());
         break;
+    case Custom:
+        mFillRegion = QRegion(transformedPolygon().toPolygon());
+        break;
     }
 
     const QRect fillBound = mFillRegion.boundingRect();
@@ -217,4 +255,33 @@ void ShapeFillTool::updateFillOverlay()
     }
 
     brushItem()->setTileLayer(mFillOverlay);
+}
+
+QPolygonF ShapeFillTool::transformedPolygon() const
+{
+    if (mCurrentPolygon.isEmpty())
+        return QPolygon();
+
+    QRectF boundingRect = mCurrentPolygon.boundingRect();
+
+    QPolygonF polygon = mCurrentPolygon;
+    polygon.translate(-boundingRect.topLeft());
+
+    QPoint pos = tilePosition();
+
+    qreal xScale = (qreal) (pos.x() - mStartCorner.x()) / boundingRect.width();
+    qreal yScale = (qreal) (pos.y() - mStartCorner.y()) / boundingRect.height();
+
+    QTransform t;
+
+    if (QApplication::keyboardModifiers() & Qt::ShiftModifier) {
+        qreal scale = std::min(qAbs(xScale), qAbs(yScale));
+        qreal xSign = (xScale > 0) - (0 > xScale);
+        qreal ySign = (yScale > 0) - (0 > yScale);
+        t.scale(xSign * scale, ySign * scale);
+    } else {
+        t.scale(xScale, yScale);
+    }
+
+    return t.map(polygon).translated(mStartCorner);
 }

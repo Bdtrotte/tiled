@@ -47,6 +47,9 @@ protected:
     void tilePositionChanged(const QPoint&) override;
     void clearConnections(MapDocument *) override {}
 
+private slots:
+    void onShapeSelected(QPolygonF polygon);
+
 private:
     enum ToolBehavior {
         Free, //nothing has been started
@@ -55,18 +58,25 @@ private:
 
     enum Shape {
         Rect,   //making a rectangle
-        Circle //making a circle
+        Circle, //making a circle
+        Custom  //custom polygon
     };
 
     ToolBehavior mToolBehavior;
     Shape mCurrentShape;
     QPoint mStartCorner;
+    QPolygonF mCurrentPolygon;
 
     QAction *mRectFill;
     QAction *mCircleFill;
+    QAction *mCustomFill;
 
     void setCurrentShape(Shape shape);
     void updateFillOverlay();
+
+    //returns the current polygon based on the start corner and
+    //current tile position. If shift is held, the scalling will be locked.
+    QPolygonF transformedPolygon() const;
 };
 
 }

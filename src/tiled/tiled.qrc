@@ -141,5 +141,6 @@
         <file>images/24x24/wangtile-edit.png</file>
         <file>images/22x22/rectangle-fill.png</file>
         <file>images/22x22/ellipse-fill.png</file>
+        <file>images/22x22/polygon-fill.png</file>
     </qresource>
 </RCC>

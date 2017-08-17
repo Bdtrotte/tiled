@@ -296,6 +296,8 @@ Map *MapReaderPrivate::readMap()
             mMap->addTileset(readTileset());
         else if (xml.name() == QLatin1String("templategroup"))
             mMap->addTemplateGroup(readTemplateGroup());
+        else if (xml.name() == QLatin1String("shape"))
+            mMap->addShape(readPolygon());
         else
             readUnknownElement();
     }
@@ -1118,7 +1120,8 @@ MapObject *MapReaderPrivate::readObject()
 QPolygonF MapReaderPrivate::readPolygon()
 {
     Q_ASSERT(xml.isStartElement() && (xml.name() == QLatin1String("polygon") ||
-                                      xml.name() == QLatin1String("polyline")));
+                                      xml.name() == QLatin1String("polyline") ||
+                                      xml.name() == QLatin1String("shape")));
 
     const QXmlStreamAttributes atts = xml.attributes();
     const QString points = atts.value(QLatin1String("points")).toString();
@@ -1302,7 +1305,6 @@ void MapReaderPrivate::readProperty(Properties *properties)
 
     properties->insert(propertyName, variant);
 }
-
 
 MapReader::MapReader()
     : d(new MapReaderPrivate(this))
